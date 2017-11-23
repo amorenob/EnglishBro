@@ -10,6 +10,8 @@ from django.http.response import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 
+from .models import Transcript, AudioChunk, Audio
+
 PAGE_ACCESS_TOKEN = "EAACOkErSag4BAAwIrNxCfF7loXyiZAKDfRbflZC6Pt2AqZAwSTtxIq7c5z03gA1qeFQJYcTsopA4PfqiCaDQZAcl1lZByS1HDH8cnBSZA1XSyJda9ZCcuYyXLBlIufTZBlz2ZC5qktm6JNVZC2bcuvZALY5rreKeHSwfst7ZCCJsptA5AAZDZD"
 VERIFY_TOKEN = "2318934571"
 
@@ -21,7 +23,29 @@ jokes = { 'stupid': ["""Yo' Mama is so stupid, she needs a recipe to make ice cu
                   """Yo' Mama is so dumb, she locked her keys inside her motorcycle."""] }
 
 
+audios = AudioChunk.objects.all()[:12]
+
+audio = random.choice(audios)
+waiting_transl = False
 # Helper function
+def saveTrasncript(sender_psid,text,chunk_id):
+    #with open('transl.txt', 'r') as file:
+    # read a list of lines into data
+    #    data = file.readlines()
+    # now change the 2nd line, note that you have to add a newline
+    #print(data)
+    #data[line] = text + '\n'
+
+    # and write everything back
+    #with open('transl.txt', 'w') as file:
+    #    file.writelines( data )
+    # Save in db
+    transcript = Transcript()
+    transcript.sender_psid = sender_psid
+    transcript.text = text
+    transcript.chunk_id = AudioChunk.objects.filter(id=chunk_id)[0]
+    transcript.save()
+
 def post_facebook_message(fbid, recevied_message):
     # Remove all punctuations, lower case the text and split it based on space
     tokens = re.sub(r"[^a-zA-Z0-9\s]",' ',recevied_message).lower().split()
@@ -63,17 +87,35 @@ def buildResponse(content,type='text'):
     elif type == 'image' or type == 'audio':
         response = {"attachment":
                 {"type":type,
-                "payload":{"url":content}
+                "payload":{"url":content,
+                "is_reusable":True}
                 }}
     return response
 
+
 def handleMessage(sender_psid,recevied_message):
     #Checks if the incoming message contains text
+    global waiting_transl, audio
     if 'text' in recevied_message:
         #do some staff
-        post_facebook_message(sender_psid, recevied_message['text'])
+        if waiting_transl:
+            callSendAPI(sender_psid,{"text":'"Next" for other audio'})
+            saveTrasncript(sender_psid,recevied_message["text"],audio.id)
+            print('Translation received')
+            waiting_transl = False
+
+        elif recevied_message['text']=='Luke' or recevied_message['text']=='Next' :
+            audio = random.choice(audios)
+            callSendAPI(
+                sender_psid,
+                buildResponse(audio.url_link,"audio"))
+            waiting_transl = True
+            print('Waiting for translation')
+        else:
+            post_facebook_message(sender_psid, recevied_message['text'])
     if 'attachments' in recevied_message:
         attachment_type = recevied_message['attachments'][0]['type']
+        
         #Gets the attachment's url
         attachment_url = recevied_message['attachments'][0]['payload']['url']
         print(attachment_url)
