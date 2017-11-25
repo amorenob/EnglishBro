@@ -10,7 +10,7 @@ from django.http.response import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 
-from .models import Transcript, AudioChunk, Audio
+from .models import Transcript, AudioChunk, Audio, User
 
 PAGE_ACCESS_TOKEN = "EAACOkErSag4BAAwIrNxCfF7loXyiZAKDfRbflZC6Pt2AqZAwSTtxIq7c5z03gA1qeFQJYcTsopA4PfqiCaDQZAcl1lZByS1HDH8cnBSZA1XSyJda9ZCcuYyXLBlIufTZBlz2ZC5qktm6JNVZC2bcuvZALY5rreKeHSwfst7ZCCJsptA5AAZDZD"
 VERIFY_TOKEN = "2318934571"
@@ -23,28 +23,31 @@ jokes = { 'stupid': ["""Yo' Mama is so stupid, she needs a recipe to make ice cu
                   """Yo' Mama is so dumb, she locked her keys inside her motorcycle."""] }
 
 
-audios = AudioChunk.objects.all()[:12]
+audios = AudioChunk.objects.all()[:2]
 
 audio = random.choice(audios)
 waiting_transl = False
-# Helper function
-def saveTrasncript(sender_psid,text,chunk_id):
-    #with open('transl.txt', 'r') as file:
-    # read a list of lines into data
-    #    data = file.readlines()
-    # now change the 2nd line, note that you have to add a newline
-    #print(data)
-    #data[line] = text + '\n'
 
-    # and write everything back
-    #with open('transl.txt', 'w') as file:
-    #    file.writelines( data )
+# Helper function
+def saveTrasncript(sender_psid,text,audio_chunk):
     # Save in db
     transcript = Transcript()
-    transcript.sender_psid = sender_psid
-    transcript.text = text
-    transcript.chunk_id = AudioChunk.objects.filter(id=chunk_id)[0]
-    transcript.save()
+    #audio_chunk = audio_chunk
+    audio_chunk.transcript_set.create(
+        user = User.objects.get(id=sender_psid),
+        text = text
+        )
+def saveUserDetails(psid, user_details):
+    #save userdetails
+    user = User.objects.create(
+        id = psid,
+        first_name =  user_details['first_name'],
+        last_name =  user_details['last_name'],
+        profile_pic = user_details['profile_pic'],
+        locale =  user_details['locale'],
+        timezone = user_details['timezone'],
+        gender = user_details['gender'])
+
 
 def post_facebook_message(fbid, recevied_message):
     # Remove all punctuations, lower case the text and split it based on space
@@ -81,7 +84,16 @@ def callSendAPI(fbid, response):
 def handlePostback(sender_psid,received_postback):
     pass
 
+def getUserDetails(fbid):
+    user_details_url = "https://graph.facebook.com/v2.6/%s"%fbid 
+    user_details_params = {
+        'fields':'first_name,last_name,profile_pic,locale,timezone,gender', 
+        'access_token':PAGE_ACCESS_TOKEN} 
+    user_details = requests.get(user_details_url, user_details_params).json()
+    return user_details
+
 def buildResponse(content,type='text'):
+    # build facebook m response
     if type == 'text':
         response = {"text":content}
     elif type == 'image' or type == 'audio':
@@ -94,13 +106,19 @@ def buildResponse(content,type='text'):
 
 
 def handleMessage(sender_psid,recevied_message):
+    
+    #checks if the user is in the db
+    if not (User.objects.filter(id=sender_psid)):
+        saveUserDetails(sender_psid,getUserDetails(sender_psid))
+
     #Checks if the incoming message contains text
     global waiting_transl, audio
+
     if 'text' in recevied_message:
         #do some staff
         if waiting_transl:
             callSendAPI(sender_psid,{"text":'"Next" for other audio'})
-            saveTrasncript(sender_psid,recevied_message["text"],audio.id)
+            saveTrasncript(sender_psid,recevied_message["text"],audio)
             print('Translation received')
             waiting_transl = False
 
