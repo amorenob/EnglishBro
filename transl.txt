@@ -1,16 +1,34 @@
-Hello this episode is sponsored by spoken
-1
-Improve their English for professional purposes
-In a really convenient way
-4
-With messaging services like WhatsApp or wechat
-6
-2 free lessons and then 20% off all of their courses
-To check it out and to automatically get that discount
-Got to get spoken com
-/ lep
-O clic a spoken logo
-12
-13
-14
-15
+from fbm_dimitrib11.models import Audio
+
+
+Intructions;
+
+- salut
+.
+ I'm a tool to help the Orion team to write the transcripst of Luke podcasts
+ I'm a nija sword helping the Orion team in the transcrips projecct
+
+
+- this is how i work:
+- Send 'word' whenever you want to receive an audio file
+
+- if you aren't sure about you transcript let'me know, write next, other 
+- you can left a blank space where yo dont know the word simply adding a "_"
+for example "This _ is sponsored by spoken"
+- you can choose if you want to practice or write transcripts
+
+- I will send you short cuns of audios, you tell me what it says, wnat to try?
+
+
+SendAudio() 
+
+
+hint()
+ send what other users have trnalated
+
+
+practicing feature 
+
+level handling
+	depend on the number of words translated
+	save 
